@@ -1,6 +1,9 @@
 package semver
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 var validSemvers = []string{
 	"0.0.4",
@@ -80,22 +83,30 @@ var invalidSemvers = []string{
 }
 
 func TestParseValidSemvers(t *testing.T) {
+	t.Parallel()
 	for _, v := range validSemvers {
-		_, err := Parse(v)
-		if err != nil {
-			t.Errorf("Error while parsing valid semver %s: %v", v, err)
-			return
-		}
+		t.Run(fmt.Sprintf("%s should parse", v), func(t *testing.T) {
+			t.Parallel()
+			_, err := Parse(v)
+			if err != nil {
+				t.Errorf("Error while parsing valid semver %s: %v", v, err)
+				return
+			}
+		})
 	}
 }
 
 func TestParseInvalidSemvers(t *testing.T) {
+	t.Parallel()
 	for _, v := range invalidSemvers {
-		_, err := Parse(v)
-		if err == nil {
-			t.Errorf("Parsing an invalid semver %s should fail", v)
-			return
-		}
+		t.Run(fmt.Sprintf("%s should not be parsed", v), func(t *testing.T) {
+			t.Parallel()
+			_, err := Parse(v)
+			if err == nil {
+				t.Errorf("Parsing an invalid semver %s should fail", v)
+				return
+			}
+		})
 	}
 
 }
