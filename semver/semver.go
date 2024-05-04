@@ -3,6 +3,7 @@ package semver
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 // The regular expression that represents a semantic version
@@ -11,6 +12,17 @@ var r = regexp.MustCompile(`^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<p
 type Semver struct {
 	Major, Minor, Patch       string
 	PreRelease, BuildMetaData *string
+}
+
+type SemverDifference struct {
+	Major, Minor, Patch       int
+	PreRelease, BuildMetaData []StringDifference
+}
+
+type StringDifference struct {
+	Added      bool
+	StartIndex uint
+	Content    string
 }
 
 // Parse parses a string to a semantic version
@@ -45,6 +57,7 @@ func Parse(str string) (Semver, error) {
 	return s, nil
 }
 
+// String returns the string representation of the current Semver
 func (s Semver) String() string {
 	// Start with the base version
 	result := fmt.Sprintf("%s.%s.%s", s.Major, s.Minor, s.Patch)
@@ -59,5 +72,143 @@ func (s Semver) String() string {
 		result = fmt.Sprintf("%s+%s", result, *s.BuildMetaData)
 	}
 
+	return result
+}
+
+// Diff calculates the difference between current Semver and another Semver
+func (s Semver) Diff(nv Semver) (SemverDifference, error) {
+	return Difference(s, nv)
+}
+
+// Difference calculates the difference between two SemVer structures
+func Difference(old, new Semver) (SemverDifference, error) {
+	oldMajor, err := strconv.Atoi(old.Major)
+	if err != nil {
+		return SemverDifference{}, err
+	}
+	newMajor, err := strconv.Atoi(new.Major)
+	if err != nil {
+		return SemverDifference{}, err
+	}
+
+	oldMinor, err := strconv.Atoi(old.Minor)
+	if err != nil {
+		return SemverDifference{}, err
+	}
+	newMinor, err := strconv.Atoi(new.Minor)
+	if err != nil {
+		return SemverDifference{}, err
+	}
+
+	oldPatch, err := strconv.Atoi(old.Patch)
+	if err != nil {
+		return SemverDifference{}, err
+	}
+	newPatch, err := strconv.Atoi(new.Patch)
+	if err != nil {
+		return SemverDifference{}, err
+	}
+
+	preReleaseDiff := differenceStringPtr(old.PreRelease, new.PreRelease)
+	buildMetaDataDiff := differenceStringPtr(old.BuildMetaData, new.BuildMetaData)
+
+	diff := SemverDifference{
+		Major:         newMajor - oldMajor,
+		Minor:         newMinor - oldMinor,
+		Patch:         newPatch - oldPatch,
+		PreRelease:    preReleaseDiff,
+		BuildMetaData: buildMetaDataDiff,
+	}
+	return diff, nil
+}
+
+// differenceStringPtr calculates the difference of two string pointers
+func differenceStringPtr(old, new *string) []StringDifference {
+	if old == nil && new == nil {
+		return []StringDifference{}
+	}
+	if old == nil {
+		return []StringDifference{
+			{
+				StartIndex: 0,
+				Added:      true,
+				Content:    *new,
+			},
+		}
+	}
+	if new == nil {
+		return []StringDifference{
+			{
+				StartIndex: 0,
+				Added:      false,
+				Content:    *old,
+			},
+		}
+	}
+	var result []StringDifference
+	minLength := min(len(*old), len(*new))
+	var addedString, removedString []byte
+	startIndex := -1
+	var i = 0
+	for i = 0; i < minLength; i++ {
+		if (*old)[i] != (*new)[i] {
+			if startIndex == -1 {
+				startIndex = i
+				addedString = make([]byte, 0, 1)
+				removedString = make([]byte, 0, 1)
+			}
+			addedString = append(addedString, (*new)[i])
+			removedString = append(removedString, (*old)[i])
+			continue
+		}
+		if startIndex != -1 {
+			result = append(result, StringDifference{
+				StartIndex: uint(startIndex),
+				Added:      false,
+				Content:    string(removedString),
+			})
+			result = append(result, StringDifference{
+				StartIndex: uint(startIndex),
+				Added:      true,
+				Content:    string(addedString),
+			})
+			startIndex = -1
+			addedString = nil
+			removedString = nil
+		}
+	}
+	if startIndex != -1 {
+		result = append(result, StringDifference{
+			StartIndex: uint(startIndex),
+			Added:      false,
+			Content:    string(removedString),
+		})
+		result = append(result, StringDifference{
+			StartIndex: uint(startIndex),
+			Added:      true,
+			Content:    string(addedString),
+		})
+		startIndex = -1
+		addedString = nil
+		removedString = nil
+	}
+
+	if len(*old) > minLength {
+		// If old string is longer
+		result = append(result, StringDifference{
+			StartIndex: uint(i),
+			Added:      false,
+			Content:    (*old)[i:],
+		})
+	}
+
+	if len(*new) > minLength {
+		// If new string is longer
+		result = append(result, StringDifference{
+			StartIndex: uint(i),
+			Added:      true,
+			Content:    (*new)[i:],
+		})
+	}
 	return result
 }

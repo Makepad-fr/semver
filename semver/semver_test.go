@@ -108,5 +108,69 @@ func TestParseInvalidSemvers(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestDifferenceBaseVersion(t *testing.T) {
+	t.Parallel()
+	old, _ := Parse("1.0.0")
+	new, _ := Parse("2.0.0")
+	diff, err := old.Diff(new)
+	if err != nil {
+		t.Errorf("Error while calculating difference between %s and %s: %v", old, new, err)
+	}
+	if diff.Major != 1 {
+		t.Errorf("Major difference should 1: %d", diff.Major)
+	}
+	if diff.Minor != 0 {
+		t.Errorf("Minor difference should 0: %d", diff.Minor)
+	}
+	if diff.Patch != 0 {
+		t.Errorf("Patch difference should 0: %d", diff.Patch)
+	}
+	if len(diff.PreRelease) != 0 {
+		t.Errorf("PreRelease difference should be empty")
+	}
+	if len(diff.BuildMetaData) != 0 {
+		t.Errorf("BuildMetedata difference should be empty")
+	}
+}
+func TestDifferencePreRelease(t *testing.T) {
+	t.Parallel()
+	old, _ := Parse("1.0.0-rc1")
+	new, _ := Parse("1.0.0-rc2")
+	diff, err := old.Diff(new)
+	if err != nil {
+		t.Errorf("Error while calculating difference between %s and %s: %v", old, new, err)
+	}
+	if diff.Major != 0 {
+		t.Errorf("Major difference should 0: %d", diff.Major)
+	}
+	if diff.Minor != 0 {
+		t.Errorf("Minor difference should 0: %d", diff.Minor)
+	}
+	if diff.Patch != 0 {
+		t.Errorf("Patch difference should 0: %d", diff.Patch)
+	}
+	if len(diff.PreRelease) != 2 {
+		t.Errorf("PreRelease difference should have 2 elements")
+
+	}
+	if len(diff.BuildMetaData) != 0 {
+		t.Errorf("BuildMetedata difference should be empty")
+	}
+	if !(diff.PreRelease[0].Content == "1" && !diff.PreRelease[0].Added && diff.PreRelease[0].StartIndex == 2) {
+		t.Errorf("First pre-release difference content should be 1: %s, it should be added false = %v, its index should be 8: %d",
+			diff.PreRelease[0].Content,
+			diff.PreRelease[0].Added,
+			diff.PreRelease[0].StartIndex,
+		)
+	}
+	if !(diff.PreRelease[1].Content == "2" && diff.PreRelease[1].Added && diff.PreRelease[1].StartIndex == 2) {
+		t.Errorf("Second pre-release difference content should be 2: %s, it should be added true = %v, its index should be 8: %d",
+			diff.PreRelease[1].Content,
+			diff.PreRelease[1].Added,
+			diff.PreRelease[1].StartIndex,
+		)
+	}
+	t.Logf("Second pre-release difference %s", diff.PreRelease[1].Content)
 }
