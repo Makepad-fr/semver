@@ -122,6 +122,19 @@ func Difference(old, new Semver) (SemverDifference, error) {
 	return diff, nil
 }
 
+func (s Semver) FlatPreReleaseDifference(new Semver) (int, error) {
+	if s.PreRelease != nil && new.PreRelease != nil {
+		oldPR, err := strconv.Atoi(*s.PreRelease)
+		if err == nil {
+			newPR, err := strconv.Atoi(*new.PreRelease)
+			if err == nil {
+				return newPR - oldPR, nil
+			}
+		}
+	}
+	return -1, fmt.Errorf("Can not calculate flat difference between pre-release parts of %s and %s", s, new)
+}
+
 // differenceStringPtr calculates the difference of two string pointers
 func differenceStringPtr(old, new *string) []StringDifference {
 	if old == nil && new == nil {
