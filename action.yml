@@ -1,0 +1,57 @@
+name: 'Semantic Versioning'
+description: 'A GitHub action to compare and validate semantic versions'
+author: "Makepad"
+
+branding:
+  icon: 'check'
+  color: 'green'
+
+inputs:
+  base-version:
+    description: 'The base version to validate or to check the diff'
+    required: true
+  target-version:
+    description: 'The target version is used to calculate the diff between the base version'
+    required: false
+  expected-major-diff:
+    description: 'The expected major version difference between the base version and the target version'
+    required: false
+  expected-minor-diff:
+    description: 'The expected minor version difference between the base version and the target version'
+    required: false
+  expected-patch-diff:
+    description: 'The expected patch version difference between the base version and the target version'
+    required: false
+  expected-pre-release-diff:
+    description: 'The expected pre-release version difference between the base version and the target version'
+    required: false
+  pre-release-prefix:
+    description: 'The prefix value used in pre-release versions'
+    required: false
+  pre-release-suffix:
+    description: 'The suffix value used in pre-release versions'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Validate a semantic version'
+      if: inputs.target-version == ''
+      uses: docker://makepad/semver:0.0.1
+      with:
+        args: ${{ inputs.base-version }}
+
+    - name: 'Difference between two semantic versions'
+      if: inputs.target-version != ''
+      uses: docker://makepad/semver:0.0.1
+      env:
+        BASE_VERSION: ${{ inputs.base-version }}
+        TARGET_VERSION: ${{ inputs.target-version }}
+        MAJOR_DIFF: ${{ inputs.expected-major-diff }}
+        MINOR_DIFF: ${{ inputs.expected-minor-diff }}
+        PATCH_DIFF: ${{ inputs.expected-patch-diff }}
+        PRE_RELEASE_DIFF: ${{ inputs.expected-pre-release-diff }}
+        PRE_RELEASE_PREFIX: ${{ inputs.pre-release-prefix }}
+        PRE_RELEASE_SUFFIX: ${{ inputs.pre-release-suffix }}
+      with:
+        args: diff -old $BASE_VERSION -new $TARGET_VERSION ${MAJOR_DIFF:+-expected-major-diff $MAJOR_DIFF} ${MINOR_DIFF:+-expected-minor-diff $MINOR_DIFF} ${PATCH_DIFF:+-expected-patch-diff $PATCH_DIFF} ${PRE_RELEASE_DIFF:+-expected-pre-release-diff $PRE_RELEASE_DIFF} ${PRE_RELEASE_PREFIX:+-pre-release-prefix $PRE_RELEASE_PREFIX} ${PRE_RELEASE_SUFFIX:+-pre-release-suffix $PRE_RELEASE_SUFFIX}
